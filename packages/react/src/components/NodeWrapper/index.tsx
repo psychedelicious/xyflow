@@ -1,4 +1,4 @@
-import { type MouseEvent, type KeyboardEvent, useMemo } from 'react';
+import { type MouseEvent, type KeyboardEvent, useMemo, useCallback } from 'react';
 import cc from 'classcat';
 import { shallow } from 'zustand/shallow';
 import {
@@ -26,8 +26,61 @@ const buildSelectNode =
   (s: ReactFlowState) =>
     s.nodeLookup.get(id) as InternalNode<NodeType>;
 const buildSelectIsParent = (id: string) => (s: ReactFlowState) => s.parentLookup.has(id);
+const buildSelectNodeHasDimensions =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return nodeHasDimensions(node);
+  };
+const buildSelectNodeDimensions =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return getNodeDimensions(node);
+  };
+const buildSelectNodeInlineStyleDimensions =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return getNodeInlineStyleDimensions(node);
+  };
+const buildSelectIsDraggable =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, nodesDraggable: boolean) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return !!(node.draggable || (nodesDraggable && typeof node.draggable === 'undefined'));
+  };
+const buildSelectIsSelectable =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, elementsSelectable: boolean) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return !!(node.selectable || (elementsSelectable && typeof node.selectable === 'undefined'));
+  };
+const buildSelectIsConnectable =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, nodesConnectable: boolean) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return !!(node.connectable || (nodesConnectable && typeof node.connectable === 'undefined'));
+  };
+const buildSelectIsFocusable =
+  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, nodesFocusable: boolean) =>
+  (s: ReactFlowState) => {
+    const node = selectNode(s);
+    return !!(node.focusable || (nodesFocusable && typeof node.focusable === 'undefined'));
+  };
 
-export function NodeWrapper<NodeType extends Node>({
+export function NodeWrapper<NodeType extends Node>(props: NodeWrapperProps<NodeType>) {
+  const selectIsHidden = useMemo(() => buildSelectIsHidden(props.id), [props.id]);
+  const isHidden = useStore(selectIsHidden);
+
+  if (isHidden) {
+    return null;
+  }
+
+  return <VisibleNodeWrapper {...props} />;
+}
+
+export function VisibleNodeWrapper<NodeType extends Node>({
   id,
   onClick,
   onMouseEnter,
@@ -50,11 +103,39 @@ export function NodeWrapper<NodeType extends Node>({
 }: NodeWrapperProps<NodeType>) {
   const selectNode = useMemo(() => buildSelectNode<NodeType>(id), [id]);
   const selectIsParent = useMemo(() => buildSelectIsParent(id), [id]);
-  const selectIsHidden = useMemo(() => buildSelectIsHidden(id), [id]);
+  const selectNodeHasDimensions = useMemo(() => buildSelectNodeHasDimensions<NodeType>(selectNode), [selectNode]);
+  const selectNodeDimensions = useMemo(() => buildSelectNodeDimensions<NodeType>(selectNode), [selectNode]);
+  const selectNodeInlineStyleDimensions = useMemo(
+    () => buildSelectNodeInlineStyleDimensions<NodeType>(selectNode),
+    [selectNode]
+  );
+  const selectIsDraggable = useMemo(
+    () => buildSelectIsDraggable<NodeType>(selectNode, nodesDraggable),
+    [selectNode, nodesDraggable]
+  );
+  const selectIsSelectable = useMemo(
+    () => buildSelectIsSelectable<NodeType>(selectNode, elementsSelectable),
+    [selectNode, elementsSelectable]
+  );
+  const selectIsConnectable = useMemo(
+    () => buildSelectIsConnectable<NodeType>(selectNode, nodesConnectable),
+    [selectNode, nodesConnectable]
+  );
+  const selectIsFocusable = useMemo(
+    () => buildSelectIsFocusable<NodeType>(selectNode, nodesFocusable),
+    [selectNode, nodesFocusable]
+  );
 
   const node = useStore(selectNode);
   const isParent = useStore(selectIsParent);
-  const isHidden = useStore(selectIsHidden);
+  const hasDimensions = useStore(selectNodeHasDimensions);
+  const nodeDimensions = useStore(selectNodeDimensions, shallow);
+  const inlineDimensions = useStore(selectNodeInlineStyleDimensions, shallow);
+
+  const isDraggable = useStore(selectIsDraggable);
+  const isSelectable = useStore(selectIsSelectable);
+  const isConnectable = useStore(selectIsConnectable);
+  const isFocusable = useStore(selectIsFocusable);
 
   let nodeType = node.type || 'default';
   let NodeComponent = nodeTypes?.[nodeType] || builtinNodeTypes[nodeType];
@@ -65,13 +146,7 @@ export function NodeWrapper<NodeType extends Node>({
     NodeComponent = nodeTypes?.['default'] || builtinNodeTypes.default;
   }
 
-  const isDraggable = !!(node.draggable || (nodesDraggable && typeof node.draggable === 'undefined'));
-  const isSelectable = !!(node.selectable || (elementsSelectable && typeof node.selectable === 'undefined'));
-  const isConnectable = !!(node.connectable || (nodesConnectable && typeof node.connectable === 'undefined'));
-  const isFocusable = !!(node.focusable || (nodesFocusable && typeof node.focusable === 'undefined'));
-
   const store = useStoreApi();
-  const hasDimensions = nodeHasDimensions(node);
   const nodeRef = useNodeObserver({ node, nodeType, hasDimensions, resizeObserver });
   const dragging = useDrag({
     nodeRef,
@@ -84,96 +159,145 @@ export function NodeWrapper<NodeType extends Node>({
   });
   const moveSelectedNodes = useMoveSelectedNodes();
 
-  if (isHidden) {
-    return null;
-  }
+  const hasPointerEvents = useMemo(
+    () => isSelectable || isDraggable || onClick || onMouseEnter || onMouseMove || onMouseLeave,
+    [isSelectable, isDraggable, onClick, onMouseEnter, onMouseMove, onMouseLeave]
+  );
 
-  const nodeDimensions = getNodeDimensions(node);
-  const inlineDimensions = getNodeInlineStyleDimensions(node);
-
-  const hasPointerEvents = isSelectable || isDraggable || onClick || onMouseEnter || onMouseMove || onMouseLeave;
-
-  const onMouseEnterHandler = onMouseEnter
-    ? (event: MouseEvent) => onMouseEnter(event, { ...node.internals.userNode })
-    : undefined;
-  const onMouseMoveHandler = onMouseMove
-    ? (event: MouseEvent) => onMouseMove(event, { ...node.internals.userNode })
-    : undefined;
-  const onMouseLeaveHandler = onMouseLeave
-    ? (event: MouseEvent) => onMouseLeave(event, { ...node.internals.userNode })
-    : undefined;
-  const onContextMenuHandler = onContextMenu
-    ? (event: MouseEvent) => onContextMenu(event, { ...node.internals.userNode })
-    : undefined;
-  const onDoubleClickHandler = onDoubleClick
-    ? (event: MouseEvent) => onDoubleClick(event, { ...node.internals.userNode })
-    : undefined;
-
-  const onSelectNodeHandler = (event: MouseEvent) => {
-    const { selectNodesOnDrag, nodeDragThreshold } = store.getState();
-
-    if (isSelectable && (!selectNodesOnDrag || !isDraggable || nodeDragThreshold > 0)) {
-      /*
-       * this handler gets called by XYDrag on drag start when selectNodesOnDrag=true
-       * here we only need to call it when selectNodesOnDrag=false
-       */
-      handleNodeClick({
-        id,
-        store,
-        nodeRef,
-      });
-    }
-
-    if (onClick) {
-      onClick(event, { ...node.internals.userNode });
-    }
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (isInputDOMNode(event.nativeEvent) || disableKeyboardA11y) {
+  const onMouseEnterHandler = useMemo(() => {
+    if (!onMouseEnter) {
       return;
     }
+    return (event: MouseEvent) => {
+      const node = selectNode(store.getState());
+      onMouseEnter(event, { ...node.internals.userNode });
+    };
+  }, [store, onMouseEnter, selectNode]);
 
-    if (elementSelectionKeys.includes(event.key) && isSelectable) {
-      const unselect = event.key === 'Escape';
-
-      handleNodeClick({
-        id,
-        store,
-        unselect,
-        nodeRef,
-      });
-    } else if (isDraggable && node.selected && Object.prototype.hasOwnProperty.call(arrowKeyDiffs, event.key)) {
-      // prevent default scrolling behavior on arrow key press when node is moved
-      event.preventDefault();
-
-      const { ariaLabelConfig } = store.getState();
-
-      store.setState({
-        ariaLiveMessage: ariaLabelConfig['node.a11yDescription.ariaLiveMessage']({
-          direction: event.key.replace('Arrow', '').toLowerCase(),
-          x: ~~node.internals.positionAbsolute.x,
-          y: ~~node.internals.positionAbsolute.y,
-        }),
-      });
-
-      moveSelectedNodes({
-        direction: arrowKeyDiffs[event.key],
-        factor: event.shiftKey ? 4 : 1,
-      });
+  const onMouseMoveHandler = useMemo(() => {
+    if (!onMouseMove) {
+      return;
     }
-  };
+    return (event: MouseEvent) => {
+      const node = selectNode(store.getState());
+      onMouseMove(event, { ...node.internals.userNode });
+    };
+  }, [store, onMouseMove, selectNode]);
+  const onMouseLeaveHandler = useMemo(() => {
+    if (!onMouseLeave) {
+      return;
+    }
+    return (event: MouseEvent) => {
+      const node = selectNode(store.getState());
+      onMouseLeave(event, { ...node.internals.userNode });
+    };
+  }, [store, onMouseLeave, selectNode]);
+  const onContextMenuHandler = useMemo(() => {
+    if (!onContextMenu) {
+      return;
+    }
+    return (event: MouseEvent) => {
+      const node = selectNode(store.getState());
+      onContextMenu(event, { ...node.internals.userNode });
+    };
+  }, [store, onContextMenu, selectNode]);
+  const onDoubleClickHandler = useMemo(() => {
+    if (!onDoubleClick) {
+      return;
+    }
+    return (event: MouseEvent) => {
+      const node = selectNode(store.getState());
+      onDoubleClick(event, { ...node.internals.userNode });
+    };
+  }, [store, onDoubleClick, selectNode]);
 
-  const onFocus = () => {
+  const onSelectNodeHandler = useCallback(
+    (event: MouseEvent) => {
+      const s = store.getState();
+      const { selectNodesOnDrag, nodeDragThreshold } = store.getState();
+      const node = selectNode(s);
+      const isDraggable = selectIsDraggable(s);
+      const isSelectable = selectIsSelectable(s);
+
+      if (isSelectable && (!selectNodesOnDrag || !isDraggable || nodeDragThreshold > 0)) {
+        /*
+         * this handler gets called by XYDrag on drag start when selectNodesOnDrag=true
+         * here we only need to call it when selectNodesOnDrag=false
+         */
+        handleNodeClick({
+          id,
+          store,
+          nodeRef,
+        });
+      }
+
+      if (onClick) {
+        onClick(event, { ...node.internals.userNode });
+      }
+    },
+    [store, selectNode, selectIsDraggable, selectIsSelectable, onClick]
+  );
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (isInputDOMNode(event.nativeEvent) || disableKeyboardA11y) {
+        return;
+      }
+
+      const s = store.getState();
+
+      const node = selectNode(s);
+
+      if (elementSelectionKeys.includes(event.key) && selectIsSelectable(s)) {
+        const unselect = event.key === 'Escape';
+
+        handleNodeClick({
+          id,
+          store,
+          unselect,
+          nodeRef,
+        });
+      } else if (
+        selectIsDraggable(s) &&
+        node.selected &&
+        Object.prototype.hasOwnProperty.call(arrowKeyDiffs, event.key)
+      ) {
+        // prevent default scrolling behavior on arrow key press when node is moved
+        event.preventDefault();
+
+        const { ariaLabelConfig } = s;
+
+        store.setState({
+          ariaLiveMessage: ariaLabelConfig['node.a11yDescription.ariaLiveMessage']({
+            direction: event.key.replace('Arrow', '').toLowerCase(),
+            x: ~~node.internals.positionAbsolute.x,
+            y: ~~node.internals.positionAbsolute.y,
+          }),
+        });
+
+        moveSelectedNodes({
+          direction: arrowKeyDiffs[event.key],
+          factor: event.shiftKey ? 4 : 1,
+        });
+      }
+    },
+    [id, store, selectNode, selectIsSelectable, selectIsDraggable, disableKeyboardA11y, arrowKeyDiffs]
+  );
+
+  const onFocus = useCallback(() => {
     if (disableKeyboardA11y || !nodeRef.current?.matches(':focus-visible')) {
       return;
     }
 
-    const { transform, width, height, autoPanOnNodeFocus, setCenter } = store.getState();
+    const s = store.getState();
+    const { transform, width, height, autoPanOnNodeFocus, setCenter } = s;
 
     if (!autoPanOnNodeFocus) {
       return;
     }
+
+    const node = selectNode(s);
+    const nodeDimensions = selectNodeDimensions(s);
 
     const withinViewport =
       getNodesInside(new Map([[id, node]]), { x: 0, y: 0, width, height }, transform, true).length > 0;
@@ -183,11 +307,11 @@ export function NodeWrapper<NodeType extends Node>({
         zoom: transform[2],
       });
     }
-  };
+  }, [id, store, selectNode, selectNodeDimensions, disableKeyboardA11y]);
 
-  return (
-    <div
-      className={cc([
+  const className = useMemo(
+    () =>
+      cc([
         'react-flow__node',
         `react-flow__node-${nodeType}`,
         {
@@ -202,7 +326,13 @@ export function NodeWrapper<NodeType extends Node>({
           draggable: isDraggable,
           dragging,
         },
-      ])}
+      ]),
+    [nodeType, noPanClassName, isDraggable, node.className, node.selected, isSelectable, isParent, dragging]
+  );
+
+  return (
+    <div
+      className={className}
       ref={nodeRef}
       style={{
         zIndex: node.internals.z,
