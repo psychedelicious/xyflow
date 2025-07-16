@@ -19,65 +19,54 @@ import { handleNodeClick } from '../Nodes/utils';
 import { arrowKeyDiffs, builtinNodeTypes, getNodeInlineStyleDimensions } from './utils';
 import { useNodeObserver } from './useNodeObserver';
 import type { InternalNode, Node, NodeWrapperProps, ReactFlowState } from '../../types';
+import { Selector, createSelector } from 'reselect';
 
-const buildSelectIsHidden = (id: string) => (s: ReactFlowState) => s.nodeLookup.get(id)?.hidden!;
+type NodeSelector<NodeType extends Node> = (s: ReactFlowState) => InternalNode<NodeType>;
+
 const buildSelectNode =
   <NodeType extends Node>(id: string) =>
   (s: ReactFlowState) =>
     s.nodeLookup.get(id) as InternalNode<NodeType>;
 const buildSelectIsParent = (id: string) => (s: ReactFlowState) => s.parentLookup.has(id);
-const buildSelectNodeHasDimensions =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return nodeHasDimensions(node);
-  };
-const buildSelectNodeDimensions =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return getNodeDimensions(node);
-  };
-const buildSelectNodeInlineStyleDimensions =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return getNodeInlineStyleDimensions(node);
-  };
-const buildSelectIsDraggable =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, nodesDraggable: boolean) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return !!(node.draggable || (nodesDraggable && typeof node.draggable === 'undefined'));
-  };
-const buildSelectIsSelectable =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, elementsSelectable: boolean) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return !!(node.selectable || (elementsSelectable && typeof node.selectable === 'undefined'));
-  };
-const buildSelectIsConnectable =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, nodesConnectable: boolean) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return !!(node.connectable || (nodesConnectable && typeof node.connectable === 'undefined'));
-  };
-const buildSelectIsFocusable =
-  <NodeType extends Node>(selectNode: (s: ReactFlowState) => InternalNode<NodeType>, nodesFocusable: boolean) =>
-  (s: ReactFlowState) => {
-    const node = selectNode(s);
-    return !!(node.focusable || (nodesFocusable && typeof node.focusable === 'undefined'));
-  };
+const buildSelectIsHidden = <NodeType extends Node>(selectNode: NodeSelector<NodeType>) =>
+  createSelector(selectNode, (node) => node.hidden);
+const buildSelectNodeHasDimensions = <NodeType extends Node>(selectNode: NodeSelector<NodeType>) =>
+  createSelector(selectNode, (node) => nodeHasDimensions(node));
+const buildSelectNodeDimensions = <NodeType extends Node>(selectNode: NodeSelector<NodeType>) =>
+  createSelector(selectNode, (node) => getNodeDimensions(node));
+const buildSelectNodeInlineStyleDimensions = <NodeType extends Node>(selectNode: NodeSelector<NodeType>) =>
+  createSelector(selectNode, (node) => getNodeInlineStyleDimensions(node));
+const buildSelectIsDraggable = <NodeType extends Node>(selectNode: NodeSelector<NodeType>, nodesDraggable: boolean) =>
+  createSelector(selectNode, (node) => !!(node.draggable || (nodesDraggable && typeof node.draggable === 'undefined')));
+const buildSelectIsSelectable = <NodeType extends Node>(
+  selectNode: NodeSelector<NodeType>,
+  elementsSelectable: boolean
+) =>
+  createSelector(
+    selectNode,
+    (node) => !!(node.selectable || (elementsSelectable && typeof node.selectable === 'undefined'))
+  );
+const buildSelectIsConnectable = <NodeType extends Node>(
+  selectNode: NodeSelector<NodeType>,
+  nodesConnectable: boolean
+) =>
+  createSelector(
+    selectNode,
+    (node) => !!(node.connectable || (nodesConnectable && typeof node.connectable === 'undefined'))
+  );
+const buildSelectIsFocusable = <NodeType extends Node>(selectNode: NodeSelector<NodeType>, nodesFocusable: boolean) =>
+  createSelector(selectNode, (node) => !!(node.focusable || (nodesFocusable && typeof node.focusable === 'undefined')));
 
 export function NodeWrapper<NodeType extends Node>(props: NodeWrapperProps<NodeType>) {
-  const selectIsHidden = useMemo(() => buildSelectIsHidden(props.id), [props.id]);
+  const selectNode = useMemo(() => buildSelectNode<NodeType>(props.id), [props.id]);
+  const selectIsHidden = useMemo(() => buildSelectIsHidden(selectNode), [selectNode]);
   const isHidden = useStore(selectIsHidden);
 
   if (isHidden) {
     return null;
   }
 
-  return <VisibleNodeWrapper {...props} />;
+  return <VisibleNodeWrapper {...props} selectNode={selectNode} />;
 }
 
 export function VisibleNodeWrapper<NodeType extends Node>({
@@ -100,8 +89,8 @@ export function VisibleNodeWrapper<NodeType extends Node>({
   nodeTypes,
   nodeClickDistance,
   onError,
-}: NodeWrapperProps<NodeType>) {
-  const selectNode = useMemo(() => buildSelectNode<NodeType>(id), [id]);
+  selectNode,
+}: NodeWrapperProps<NodeType> & { selectNode: NodeSelector<NodeType> }) {
   const selectIsParent = useMemo(() => buildSelectIsParent(id), [id]);
   const selectNodeHasDimensions = useMemo(() => buildSelectNodeHasDimensions<NodeType>(selectNode), [selectNode]);
   const selectNodeDimensions = useMemo(() => buildSelectNodeDimensions<NodeType>(selectNode), [selectNode]);

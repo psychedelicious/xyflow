@@ -61,8 +61,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xyflow/system": "workspace:*",
+    "@xyflow/system": "file:../system",
     "classcat": "^5.0.3",
+    "reselect": "^5.1.1",
     "zustand": "^4.4.0"
   },
   "peerDependencies": {

@@ -2,6 +2,8 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent, AriaRole, HTMLAttrib
 import type { CoordinateExtent, NodeBase, OnError, NodeProps as NodePropsBase, InternalNodeBase } from '@xyflow/system';
 
 import { NodeTypes } from './general';
+import { Selector } from 'reselect';
+import { ReactFlowState } from './store';
 
 /**
  * The `Node` type represents everything React Flow needs to know about a given node.

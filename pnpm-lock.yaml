@@ -209,27 +209,30 @@ importers:
   packages/react:
     dependencies:
       '@xyflow/system':
-        specifier: workspace:*
+        specifier: file:../system
         version: link:../system
       classcat:
         specifier: ^5.0.3
         version: 5.0.4
       react-dom:
-        specifier: '>=17'
-        version: 18.2.0(react@18.2.0)
+        specifier: 18.3.1
+        version: 18.3.1(react@18.3.1)
+      reselect:
+        specifier: ^5.1.1
+        version: 5.1.1
       zustand:
         specifier: ^4.4.0
-        version: 4.4.1(@types/react@18.2.24)(immer@10.0.4)(react@18.2.0)
+        version: 4.4.1(@types/react@18.3.1)(immer@10.0.4)(react@18.3.1)
     devDependencies:
       '@types/node':
         specifier: ^18.7.16
         version: 18.7.16
       '@types/react':
         specifier: '>=17'
-        version: 18.2.24
+        version: 18.3.1
       '@types/react-dom':
         specifier: '>=17'
-        version: 18.2.8
+        version: 18.3.1
       '@xyflow/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -265,7 +268,7 @@ importers:
         version: 0.6.1(postcss@8.4.21)
       react:
         specifier: ^18.2.0
-        version: 18.2.0
+        version: 18.3.1
       typescript:
         specifier: 5.4.5
         version: 5.4.5
@@ -2071,11 +2074,17 @@ packages:
   '@types/react-dom@18.3.0':
     resolution: {integrity: sha512-EhwApuTmMBmXuFOikhQLIBUn6uFg81SwLMOAUgodJF14SOBOCMdU04gDoYi0WOJJHD144TL32z4yDqCW3dnkQg==}
 
+  '@types/react-dom@18.3.1':
+    resolution: {integrity: sha512-qW1Mfv8taImTthu4KoXgDfLuk4bydU6Q/TkADnDWWHwi4NX4BR+LWfTp2sVmTqRrsHvyDDTelgelxJ+SsejKKQ==}
+
   '@types/react@18.2.24':
     resolution: {integrity: sha512-Ee0Jt4sbJxMu1iDcetZEIKQr99J1Zfb6D4F3qfUWoR1JpInkY1Wdg4WwCyBjL257D0+jGqSl1twBjV8iCaC0Aw==}
 
   '@types/react@18.2.36':
     resolution: {integrity: sha512-o9XFsHYLLZ4+sb9CWUYwHqFVoG61SesydF353vFMMsQziiyRu8np4n2OYMUSDZ8XuImxDr9c5tR7gidlH29Vnw==}
+
+  '@types/react@18.3.1':
+    resolution: {integrity: sha512-V0kuGBX3+prX+DQ/7r2qsv1NsdfnCLnTgnRJ1pYnxykBhGMz+qj+box5lq7XsO5mtZsBqpjwwTu/7wszPfMBcw==}
 
   '@types/react@18.3.3':
     resolution: {integrity: sha512-hti/R0pS0q1/xx+TsI73XIqk26eBsISZ2R0wUijXIngRK9R/e7Xw/cXVxQK7R5JjW+SV4zGcn5hXjudkN/pLIw==}
@@ -5466,6 +5475,9 @@ packages:
   reselect@5.1.0:
     resolution: {integrity: sha512-aw7jcGLDpSgNDyWBQLv2cedml85qd95/iszJjN988zX1t7AVRJi19d9kto5+W7oCfQ94gyo40dVbT6g2k4/kXg==}
 
+  reselect@5.1.1:
+    resolution: {integrity: sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w==}
+
   resolve-from@4.0.0:
     resolution: {integrity: sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g==}
     engines: {node: '>=4'}
@@ -8449,6 +8461,10 @@ snapshots:
     dependencies:
       '@types/react': 18.3.3
 
+  '@types/react-dom@18.3.1':
+    dependencies:
+      '@types/react': 18.3.3
+
   '@types/react@18.2.24':
     dependencies:
       '@types/prop-types': 15.7.9
@@ -8459,6 +8475,11 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.10
       '@types/scheduler': 0.16.5
+      csstype: 3.1.2
+
+  '@types/react@18.3.1':
+    dependencies:
+      '@types/prop-types': 15.7.10
       csstype: 3.1.2
 
   '@types/react@18.3.3':
@@ -12710,6 +12731,8 @@ snapshots:
 
   reselect@5.1.0: {}
 
+  reselect@5.1.1: {}
+
   resolve-from@4.0.0: {}
 
   resolve-from@5.0.0: {}
@@ -13760,6 +13783,10 @@ snapshots:
     dependencies:
       react: 18.2.0
 
+  use-sync-external-store@1.2.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   util-deprecate@1.0.2: {}
 
   uuid@8.3.2: {}
@@ -14034,13 +14061,13 @@ snapshots:
 
   zod@3.25.57: {}
 
-  zustand@4.4.1(@types/react@18.2.24)(immer@10.0.4)(react@18.2.0):
+  zustand@4.4.1(@types/react@18.3.1)(immer@10.0.4)(react@18.3.1):
     dependencies:
-      use-sync-external-store: 1.2.0(react@18.2.0)
+      use-sync-external-store: 1.2.0(react@18.3.1)
     optionalDependencies:
-      '@types/react': 18.2.24
+      '@types/react': 18.3.1
       immer: 10.0.4
-      react: 18.2.0
+      react: 18.3.1
 
   zustand@4.4.6(@types/react@18.2.36)(immer@10.0.4)(react@18.2.0):
     dependencies:
