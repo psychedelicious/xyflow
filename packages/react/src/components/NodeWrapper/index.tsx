@@ -1,4 +1,4 @@
-import { type MouseEvent, type KeyboardEvent } from 'react';
+import { type MouseEvent, type KeyboardEvent, useMemo } from 'react';
 import cc from 'classcat';
 import { shallow } from 'zustand/shallow';
 import {
@@ -18,7 +18,14 @@ import { useMoveSelectedNodes } from '../../hooks/useMoveSelectedNodes';
 import { handleNodeClick } from '../Nodes/utils';
 import { arrowKeyDiffs, builtinNodeTypes, getNodeInlineStyleDimensions } from './utils';
 import { useNodeObserver } from './useNodeObserver';
-import type { InternalNode, Node, NodeWrapperProps } from '../../types';
+import type { InternalNode, Node, NodeWrapperProps, ReactFlowState } from '../../types';
+
+const buildSelectIsHidden = (id: string) => (s: ReactFlowState) => s.nodeLookup.get(id)?.hidden!;
+const buildSelectNode =
+  <NodeType extends Node>(id: string) =>
+  (s: ReactFlowState) =>
+    s.nodeLookup.get(id) as InternalNode<NodeType>;
+const buildSelectIsParent = (id: string) => (s: ReactFlowState) => s.parentLookup.has(id);
 
 export function NodeWrapper<NodeType extends Node>({
   id,
@@ -41,16 +48,13 @@ export function NodeWrapper<NodeType extends Node>({
   nodeClickDistance,
   onError,
 }: NodeWrapperProps<NodeType>) {
-  const { node, internals, isParent } = useStore((s) => {
-    const node = s.nodeLookup.get(id)! as InternalNode<NodeType>;
-    const isParent = s.parentLookup.has(id);
+  const selectNode = useMemo(() => buildSelectNode<NodeType>(id), [id]);
+  const selectIsParent = useMemo(() => buildSelectIsParent(id), [id]);
+  const selectIsHidden = useMemo(() => buildSelectIsHidden(id), [id]);
 
-    return {
-      node,
-      internals: node.internals,
-      isParent,
-    };
-  }, shallow);
+  const node = useStore(selectNode);
+  const isParent = useStore(selectIsParent);
+  const isHidden = useStore(selectIsHidden);
 
   let nodeType = node.type || 'default';
   let NodeComponent = nodeTypes?.[nodeType] || builtinNodeTypes[nodeType];
@@ -80,7 +84,7 @@ export function NodeWrapper<NodeType extends Node>({
   });
   const moveSelectedNodes = useMoveSelectedNodes();
 
-  if (node.hidden) {
+  if (isHidden) {
     return null;
   }
 
@@ -90,19 +94,19 @@ export function NodeWrapper<NodeType extends Node>({
   const hasPointerEvents = isSelectable || isDraggable || onClick || onMouseEnter || onMouseMove || onMouseLeave;
 
   const onMouseEnterHandler = onMouseEnter
-    ? (event: MouseEvent) => onMouseEnter(event, { ...internals.userNode })
+    ? (event: MouseEvent) => onMouseEnter(event, { ...node.internals.userNode })
     : undefined;
   const onMouseMoveHandler = onMouseMove
-    ? (event: MouseEvent) => onMouseMove(event, { ...internals.userNode })
+    ? (event: MouseEvent) => onMouseMove(event, { ...node.internals.userNode })
     : undefined;
   const onMouseLeaveHandler = onMouseLeave
-    ? (event: MouseEvent) => onMouseLeave(event, { ...internals.userNode })
+    ? (event: MouseEvent) => onMouseLeave(event, { ...node.internals.userNode })
     : undefined;
   const onContextMenuHandler = onContextMenu
-    ? (event: MouseEvent) => onContextMenu(event, { ...internals.userNode })
+    ? (event: MouseEvent) => onContextMenu(event, { ...node.internals.userNode })
     : undefined;
   const onDoubleClickHandler = onDoubleClick
-    ? (event: MouseEvent) => onDoubleClick(event, { ...internals.userNode })
+    ? (event: MouseEvent) => onDoubleClick(event, { ...node.internals.userNode })
     : undefined;
 
   const onSelectNodeHandler = (event: MouseEvent) => {
@@ -121,7 +125,7 @@ export function NodeWrapper<NodeType extends Node>({
     }
 
     if (onClick) {
-      onClick(event, { ...internals.userNode });
+      onClick(event, { ...node.internals.userNode });
     }
   };
 
@@ -148,8 +152,8 @@ export function NodeWrapper<NodeType extends Node>({
       store.setState({
         ariaLiveMessage: ariaLabelConfig['node.a11yDescription.ariaLiveMessage']({
           direction: event.key.replace('Arrow', '').toLowerCase(),
-          x: ~~internals.positionAbsolute.x,
-          y: ~~internals.positionAbsolute.y,
+          x: ~~node.internals.positionAbsolute.x,
+          y: ~~node.internals.positionAbsolute.y,
         }),
       });
 
@@ -201,8 +205,8 @@ export function NodeWrapper<NodeType extends Node>({
       ])}
       ref={nodeRef}
       style={{
-        zIndex: internals.z,
-        transform: `translate(${internals.positionAbsolute.x}px,${internals.positionAbsolute.y}px)`,
+        zIndex: node.internals.z,
+        transform: `translate(${node.internals.positionAbsolute.x}px,${node.internals.positionAbsolute.y}px)`,
         pointerEvents: hasPointerEvents ? 'all' : 'none',
         visibility: hasDimensions ? 'visible' : 'hidden',
         ...node.style,
@@ -230,8 +234,8 @@ export function NodeWrapper<NodeType extends Node>({
           id={id}
           data={node.data}
           type={nodeType}
-          positionAbsoluteX={internals.positionAbsolute.x}
-          positionAbsoluteY={internals.positionAbsolute.y}
+          positionAbsoluteX={node.internals.positionAbsolute.x}
+          positionAbsoluteY={node.internals.positionAbsolute.y}
           selected={node.selected ?? false}
           selectable={isSelectable}
           draggable={isDraggable}
@@ -241,7 +245,7 @@ export function NodeWrapper<NodeType extends Node>({
           targetPosition={node.targetPosition}
           dragging={dragging}
           dragHandle={node.dragHandle}
-          zIndex={internals.z}
+          zIndex={node.internals.z}
           parentId={node.parentId}
           {...nodeDimensions}
         />
